@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/csv"
 	"io/ioutil"
@@ -153,5 +154,33 @@ func TestProcess(t *testing.T) {
 		err := process(r, w, config(1, 0), anons)
 		assert.NoError(t, err, "should return no error")
 		assert.Equal(t, "a,b\nd,e\n", out.String(), "should process all rows")
+	})
+}
+
+func TestCustomProcess(t *testing.T) {
+
+	config := func(mod uint32, idColumn uint32) *Config {
+		return &Config{Sampling: SamplingConfig{Mod: mod, IDColumn: idColumn}}
+	}
+	createReaderAndWriter := func(in string) (*bufio.Scanner, *bufio.Writer, *bytes.Buffer) {
+		var out bytes.Buffer
+		r := bufio.NewScanner(strings.NewReader(in))
+
+		w := bufio.NewWriter(&out)
+		return r, w, &out
+	}
+	voc.reset()
+	t.Run("custom parsing", func(t *testing.T) {
+		src := "amSMSLdap:02/26/2020 04:19:29:518 PM EST: Thread[localhost-startStop-2,5,main]: user: Иван Козлов phone 791212312312\n" +
+			"amSMSLdap:02/26/2020 04:19:29:518 PM EST: Thread[localhost-startStop-2,5,main]: user: Иван Петров phone 79110987655\n"
+		res := "amSMSLdap:02/26/2020 04:19:29:518 PM EST: Thread[localhost-startStop-2,5,main]: user: NTest0 NTest1 phone 7912********\n" +
+			"amSMSLdap:02/26/2020 04:19:29:518 PM EST: Thread[localhost-startStop-2,5,main]: user: NTest0 NTest2 phone 7911*******\n"
+		conf := config(1, 0)
+		r, w, out := createReaderAndWriter(src)
+		custom, _ := custom([]CustomConfig{CustomConfig{Name: "name", Regexp: "([А-Я][а-яА-Я\\-]{1,})"}, CustomConfig{Name: "phone", Regexp: "\\b[7,8]9[0-9]{9,11}\\b"}})
+		customAnons := &[]Anonymisation{custom}
+		err := processText(r, w, conf, customAnons)
+		assert.NoError(t, err, "should return no error")
+		assert.Equal(t, res, out.String(), "should process all rows")
 	})
 }
