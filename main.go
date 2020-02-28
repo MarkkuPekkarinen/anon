@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -23,15 +24,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	r := initReader(flag.Arg(0), conf.Csv)
-	w := initWriter(*outputFile, conf.Csv)
+
 	anons, err := anonymisations(&conf.Actions)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := process(r, w, conf, &anons); err != nil {
-		log.Fatal(err)
+	if conf.PlainText {
+		r := initTextReader(flag.Arg(0))
+		w := initTextWriter(*outputFile)
+		if err := processText(r, w, conf, &anons); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		r := initReader(flag.Arg(0), conf.Csv)
+		w := initWriter(*outputFile, conf.Csv)
+		if err := process(r, w, conf, &anons); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -68,6 +78,29 @@ func process(r *csv.Reader, w *csv.Writer, conf *Config, anons *[]Anonymisation)
 	return nil
 }
 
+func processText(s *bufio.Scanner, w *bufio.Writer, conf *Config, anons *[]Anonymisation) error {
+	i := 0
+	for s.Scan() {
+		record := s.Text()
+		anonymised, err := anonymise([]string{record}, *anons)
+		if err != nil {
+			log.Print(err)
+		} else {
+			_, err = w.WriteString(anonymised[0] + "\n")
+			if err != nil {
+				log.Print(err)
+			}
+		}
+		i++
+		if i%100 == 0 {
+			w.Flush()
+		}
+	}
+	fmt.Printf("processed %v lines \n", i)
+	w.Flush()
+	return nil
+}
+
 func sample(s string, conf SamplingConfig) bool {
 	h := fnv.New32a()
 	h.Write([]byte(s))
@@ -83,6 +116,16 @@ func initReader(filename string, conf CsvConfig) *csv.Reader {
 func initWriter(filename string, conf CsvConfig) *csv.Writer {
 	writer := csv.NewWriter(fileOr(filename, os.Stdout, os.Create))
 	writer.Comma = []rune(conf.Delimiter)[0]
+	return writer
+}
+
+func initTextReader(filename string) *bufio.Scanner {
+	s := bufio.NewScanner(fileOr(filename, os.Stdin, os.Open))
+	return s
+}
+
+func initTextWriter(filename string) *bufio.Writer {
+	writer := bufio.NewWriter(fileOr(filename, os.Stdout, os.Create))
 	return writer
 }
 
@@ -105,6 +148,7 @@ func anonymise(record []string, anons []Anonymisation) ([]string, error) {
 		// TODO decide if we fail if not enough anonmisations are defined
 		// or we just skip the column (i.e. we apply identity)
 		if i < len(anons) {
+			// log.Printf("processing: %#v", record[i])
 			if record[i], err = anons[i](record[i]); err != nil {
 				return nil, err
 			}
