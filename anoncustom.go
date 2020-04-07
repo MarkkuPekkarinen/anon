@@ -16,6 +16,7 @@ type CustomConfig struct {
 
 type vocabulary struct {
 	vocabularyMap map[string]string
+	prefix        string
 }
 
 func (v *vocabulary) getVocabularyVal(s string) string {
@@ -23,7 +24,7 @@ func (v *vocabulary) getVocabularyVal(s string) string {
 		return s
 	}
 	if v.vocabularyMap[s] == "" {
-		v.vocabularyMap[s] = "NTest" + fmt.Sprint(len(v.vocabularyMap))
+		v.vocabularyMap[s] = v.prefix + fmt.Sprint(len(v.vocabularyMap))
 	}
 	return v.vocabularyMap[s]
 }
@@ -34,7 +35,8 @@ func (v *vocabulary) reset() {
 	}
 }
 
-var voc = vocabulary{vocabularyMap: make(map[string]string)}
+var voc = vocabulary{vocabularyMap: make(map[string]string), prefix: "NTest"}
+var vocHosts = vocabulary{vocabularyMap: make(map[string]string), prefix: "NTesthost"}
 
 func custom(cc []CustomConfig) (Anonymisation, error) {
 	return func(s string) (string, error) {
@@ -64,6 +66,13 @@ func custom(cc []CustomConfig) (Anonymisation, error) {
 				f = card
 			case "email":
 				f = email
+			case "hostname":
+				f = hostname
+			case "replaceMiddleGroup":
+				f = func(a string) string {
+					a = r.ReplaceAllString(a, "$1********$3")
+					return a
+				}
 			default:
 				f = func(a string) string {
 					return a
@@ -74,6 +83,7 @@ func custom(cc []CustomConfig) (Anonymisation, error) {
 				sub2 := r.ReplaceAllStringFunc(sub, f)
 				s = strings.ReplaceAll(s, sub, sub2)
 			}
+			println(c.Name, s)
 		}
 		return s, nil
 	}, nil
@@ -134,4 +144,8 @@ func card(a string) string {
 func email(a string) string {
 	r := regexp.MustCompile("\\b([a-zA-Z0-9_.+-]+)@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+\\b")
 	return r.ReplaceAllString(a, "$1@domain.com")
+}
+
+func hostname(a string) string {
+	return vocHosts.getVocabularyVal(a)
 }
