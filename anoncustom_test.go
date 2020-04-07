@@ -153,3 +153,26 @@ func TestComplex(t *testing.T) {
 		assert.Equal(t, "attribute=8925*******", res, "should return changed input")
 	})
 }
+
+func TestHostname(t *testing.T) {
+	vocHosts.reset()
+	name := "hostname"
+	regexp := "([a-zA-Z0-9-.]*google\\.com)|([a-zA-Z0-9-.]*go\\.gl)"
+	f, _ := custom([]CustomConfig{CustomConfig{Name: name, Regexp: regexp}})
+	t.Run("Replace complex regexp", func(t *testing.T) {
+		res, err := f("server=maps.google.com server2=test.google.com")
+		assert.NoError(t, err, "should return no error")
+		assert.Equal(t, "server=NTesthost0 server2=NTesthost1", res, "should return changed input")
+	})
+}
+
+func TestReplaceMiddleGroup(t *testing.T) {
+	name := "replaceMiddleGroup"
+	regexp := "(\"value\"\\:\\s*\")([\\w\\W]*)(\")"
+	f, _ := custom([]CustomConfig{CustomConfig{Name: name, Regexp: regexp}})
+	t.Run("Replace middle grop regexp", func(t *testing.T) {
+		res, err := f(`"value": "login"`)
+		assert.NoError(t, err, "should return no error")
+		assert.Equal(t, `"value": "********"`, res, "should return changed input")
+	})
+}
