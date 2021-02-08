@@ -30,10 +30,11 @@ type RangeConfig struct {
 
 // ActionConfig stores the config of an anonymisation action
 type ActionConfig struct {
-	Name        string
-	Salt        *string
-	DateConfig  DateConfig
-	RangeConfig []RangeConfig
+	Name         string
+	Salt         *string
+	DateConfig   DateConfig
+	RangeConfig  []RangeConfig
+	CustomConfig []CustomConfig
 }
 
 // Returns an array of anonymisations according to the config
@@ -69,6 +70,8 @@ func (ac *ActionConfig) create() (Anonymisation, error) {
 		return year(ac.DateConfig.Format)
 	case "ranges":
 		return ranges(ac.RangeConfig)
+	case "custom":
+		return custom(ac.CustomConfig)
 	}
 	return nil, fmt.Errorf("can't create an action with name %s", ac.Name)
 }

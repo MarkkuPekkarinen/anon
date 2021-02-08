@@ -18,9 +18,10 @@ type SamplingConfig struct {
 
 // Config stores all the configuration
 type Config struct {
-	Csv      CsvConfig
-	Sampling SamplingConfig
-	Actions  []ActionConfig
+	Csv       CsvConfig
+	PlainText bool
+	Sampling  SamplingConfig
+	Actions   []ActionConfig
 }
 
 var defaultCsvConfig = CsvConfig{
